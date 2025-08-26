@@ -178,7 +178,7 @@ namespace Content.Server.GameTicking
 
         public HumanoidCharacterProfile GetPlayerProfile(ICommonSession p)
         {
-            return (HumanoidCharacterProfile) _prefsManager.GetPreferences(p.UserId).SelectedCharacter;
+            return (HumanoidCharacterProfile)_prefsManager.GetPreferences(p.UserId).SelectedCharacter;
         }
 
         public void PlayerJoinGame(ICommonSession session, bool silent = false)
@@ -201,7 +201,7 @@ namespace Content.Server.GameTicking
             RaiseNetworkEvent(new TickerJoinGameEvent(), session.Channel);
         }
 
-        private void PlayerJoinLobby(ICommonSession session)
+        public void PlayerJoinLobby(ICommonSession session)
         {
             _playerGameStatuses[session.UserId] = LobbyEnabled ? PlayerGameStatus.NotReadyToPlay : PlayerGameStatus.ReadyToPlay;
             _db.AddRoundPlayers(RoundId, session.UserId);

@@ -38,10 +38,10 @@ public sealed class PersistenceSave : LocalizedEntityCommands
             return;
         }
 
-        var saveFilePath = (args.Length > 1 ? args[1] : null) ?? _config.GetCVar(CCVars.GameMap);
+        var saveFilePath = (args.Length > 1 ? args[1] : null) ?? _config.GetCVar(CCVars.PersistenceMap);
         if (string.IsNullOrWhiteSpace(saveFilePath))
         {
-            shell.WriteError(Loc.GetString("cmd-persistencesave-no-path", ("cvar", nameof(CCVars.GameMap))));
+            shell.WriteError(Loc.GetString("cmd-persistencesave-no-path", ("cvar", nameof(CCVars.PersistenceMap))));
             return;
         }
 

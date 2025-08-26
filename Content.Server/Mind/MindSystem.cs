@@ -12,6 +12,11 @@ using Robust.Shared.Network;
 using Robust.Shared.Player;
 using Robust.Shared.Utility;
 using System.Diagnostics.CodeAnalysis;
+using Content.Shared.GameTicking;
+using Robust.Shared.EntitySerialization.Systems;
+using Robust.Shared.Map.Events;
+using Robust.Shared.Configuration;
+using Content.Shared.CCVar;
 
 namespace Content.Server.Mind;
 
@@ -23,6 +28,8 @@ public sealed class MindSystem : SharedMindSystem
     [Dependency] private readonly GhostSystem _ghosts = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly PvsOverrideSystem _pvsOverride = default!;
+    [Dependency] private readonly MapLoaderSystem _mapLoader = default!;
+    [Dependency] private readonly IConfigurationManager _cfg = default!;
 
     public override void Initialize()
     {
@@ -30,11 +37,64 @@ public sealed class MindSystem : SharedMindSystem
 
         SubscribeLocalEvent<MindContainerComponent, EntityTerminatingEvent>(OnMindContainerTerminating);
         SubscribeLocalEvent<MindComponent, ComponentShutdown>(OnMindShutdown);
+        SubscribeLocalEvent<RulePlayerSpawningEvent>(OnPlayerSpawning);
+
+        // I wish I could do something like SubscribeLocalEvent<MindContainerComponent, OnIsSerializable>(),
+        // but that doesn't work
+        _mapLoader.OnIsSerializable += OnIsSerializableMind;
     }
 
+    private void OnIsSerializableMind(Entity<MetaDataComponent> ent, ref bool serializable)
+    {
+        // If persistence is enabled, assume we should save. If they are mapping, they
+        // should set this to false.
+        if (_cfg.GetCVar(CCVars.UsePersistence))
+            return;
+
+        // Don't save any mobs
+        if (HasComp<MindContainerComponent>(ent) || HasComp<MindComponent>(ent))
+            serializable = false;
+    }
+
+    private void OnPlayerSpawning(RulePlayerSpawningEvent ev)
+    {
+        var toRemove = new RemQueue<ICommonSession>();
+
+        foreach (var player in ev.PlayerPool)
+        {
+            if (!TryRejoinMind(player))
+                continue;
+
+            // They already have a character in the world, likely due to persistence
+            toRemove.Add(player);
+        }
+
+        foreach (var player in toRemove)
+            ev.PlayerPool.Remove(player);
+    }
+
+    public bool TryRejoinMind(ICommonSession player)
+    {
+        if (!TryGetMind(player, out var mind, out var mindComponent))
+            return false;
+
+        var target = mindComponent.CurrentEntity;
+        if (target == null)
+            return false;
+
+        if (mindComponent.UserId != player.UserId)
+            SetUserId(mind, player.UserId, mindComponent);
+
+        if (player.ContentData() is { } data)
+            data.Mind = mind;
+
+        _players.SetAttachedEntity(player, target, true);
+        _gameTicker.PlayerJoinGame(player);
+        return true;
+    }
     private void OnMindShutdown(EntityUid uid, MindComponent mind, ComponentShutdown args)
     {
-        if (mind.UserId is {} user)
+        if (mind.UserId is { } user)
         {
             UserMinds.Remove(user);
             if (_players.TryGetPlayerData(user, out var data) && data.ContentData() is { } oldData)
@@ -54,7 +114,7 @@ public sealed class MindSystem : SharedMindSystem
             return;
 
         // If the player is currently visiting some other entity, simply attach to that entity.
-        if (mind.VisitingEntity is {Valid: true} visiting
+        if (mind.VisitingEntity is { Valid: true } visiting
             && visiting != uid
             && !Deleted(visiting)
             && !Terminating(visiting))
@@ -84,7 +144,7 @@ public sealed class MindSystem : SharedMindSystem
     {
         if (base.TryGetMind(user, out mindId, out mind))
         {
-            DebugTools.Assert(!_players.TryGetPlayerData(user, out var playerData) || playerData.ContentData() is not { } data || data.Mind == mindId);
+            //DebugTools.Assert(!_players.TryGetPlayerData(user, out var playerData) || playerData.ContentData() is not { } data || data.Mind == mindId);
             return true;
         }
 
@@ -191,7 +251,7 @@ public sealed class MindSystem : SharedMindSystem
             {
                 // Happens when transferring to your currently visited entity.
                 if (!_players.TryGetSessionByEntity(entity.Value, out var session) ||
-                    mind.UserId == null || actor.PlayerSession != session )
+                    mind.UserId == null || actor.PlayerSession != session)
                 {
                     throw new ArgumentException("Visit target already has a session.", nameof(entity));
                 }

@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Numerics;
 using Content.Server.Announcements;
 using Content.Server.Discord;
 using Content.Server.GameTicking.Events;
@@ -23,6 +21,8 @@ using Robust.Shared.Network;
 using Robust.Shared.Player;
 using Robust.Shared.Random;
 using Robust.Shared.Utility;
+using System.Linq;
+using System.Numerics;
 
 namespace Content.Server.GameTicking
 {
@@ -98,14 +98,8 @@ namespace Content.Server.GameTicking
 
             // the map might have been force-set by something
             // (i.e. votemap or forcemap)
+            _gameMapManager.SelectMapByConfigRules();
             var mainStationMap = _gameMapManager.GetSelectedMap();
-            if (mainStationMap == null)
-            {
-                // otherwise set the map using the config rules
-                _gameMapManager.SelectMapByConfigRules();
-                mainStationMap = _gameMapManager.GetSelectedMap();
-            }
-
             // Small chance the above could return no map.
             // ideally SelectMapByConfigRules will always find a valid map
             if (mainStationMap != null)
@@ -127,21 +121,20 @@ namespace Content.Server.GameTicking
                 Log.Debug(msg);
                 SendServerMessage(msg);
             }
-
             // Let game rules dictate what maps we should load.
             RaiseLocalEvent(new LoadingMapsEvent(maps));
-
             if (maps.Count == 0)
             {
                 _map.CreateMap(out var mapId, runMapInit: false);
                 DefaultMap = mapId;
                 return;
             }
-
             for (var i = 0; i < maps.Count; i++)
             {
                 LoadGameMap(maps[i], out var mapId);
-                DebugTools.Assert(!_map.IsInitialized(mapId));
+                
+                if(!_cfg.GetCVar(CCVars.UsePersistence))
+                    DebugTools.Assert(!_map.IsInitialized(mapId));
 
                 if (i == 0)
                     DefaultMap = mapId;
@@ -221,7 +214,6 @@ namespace Content.Server.GameTicking
             {
                 throw new Exception($"Failed to load game map {ev.GameMap.ID}");
             }
-
             mapId = map.Value.Comp.MapId;
             _metaData.SetEntityName(map.Value.Owner, proto.MapName);
             var gridUids = grids.Select(x => x.Owner).ToList();
@@ -402,13 +394,11 @@ namespace Content.Server.GameTicking
 
             // Just in case it hasn't been loaded previously we'll try loading it.
             LoadMaps();
-
             // map has been selected so update the lobby info text
             // applies to players who didn't ready up
             UpdateInfoText();
 
             StartGamePresetRules();
-
             RoundLengthMetric.Set(0);
 
             var startingEvent = new RoundStartingEvent(RoundId);
@@ -421,9 +411,9 @@ namespace Content.Server.GameTicking
                 _startingRound = false;
                 return;
             }
-
             // MapInitialize *before* spawning players, our codebase is too shit to do it afterwards...
-            _map.InitializeMap(DefaultMap);
+            if (!_map.IsInitialized(DefaultMap))
+                _map.InitializeMap(DefaultMap);
 
             SpawnPlayers(readyPlayers, readyPlayerProfiles, force);
 
@@ -481,7 +471,11 @@ namespace Content.Server.GameTicking
             DebugTools.Assert(RunLevel == GameRunLevel.InRound);
             _sawmill.Info("Ending round!");
 
+            if(_cfg.GetCVar(CCVars.UsePersistence))
+                SaveMap();
+
             RunLevel = GameRunLevel.PostRound;
+            SendStatusToAll();
 
             try
             {
@@ -500,6 +494,27 @@ namespace Content.Server.GameTicking
             {
                 Log.Error($"Error while sending round end Discord message: {e}");
             }
+        }
+
+        /// <summary>
+        /// Saves the current DefaultMap
+        /// </summary>
+        private void SaveMap()
+        {
+            // Kick everyone back to the lobby before we save, as we can't serialize ActorComponents yet
+            foreach (var player in _playerManager.Sessions)
+            {
+                if (!player.AttachedEntity.HasValue)
+                    continue;
+
+                PlayerJoinLobby(player);
+                RemComp<ActorComponent>(player.AttachedEntity.Value);
+            }
+
+            if (_loader.TrySaveMap(DefaultMap, new ResPath(_cfg.GetCVar(CCVars.PersistenceMap))))
+                Log.Info("Map saved!");
+            else
+                Log.Error("Map failed to save!");
         }
 
         public void ShowRoundEndScoreboard(string text = "")
@@ -823,13 +838,6 @@ namespace Content.Server.GameTicking
                 Log.Error($"Error while sending discord round start message:\n{e}");
             }
         }
-    }
-
-    public enum GameRunLevel
-    {
-        PreRoundLobby = 0,
-        InRound = 1,
-        PostRound = 2
     }
 
     public sealed class GameRunLevelChangedEvent

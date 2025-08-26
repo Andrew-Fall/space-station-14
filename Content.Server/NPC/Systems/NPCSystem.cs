@@ -63,11 +63,12 @@ namespace Content.Server.NPC.Systems
             WakeNPC(uid, component);
         }
 
-        public void OnNPCMapInit(EntityUid uid, HTNComponent component, MapInitEvent args)
+        public void OnNPCCompInit(EntityUid uid, HTNComponent component, ComponentInit args)
         {
             component.Blackboard.SetValue(NPCBlackboard.Owner, uid);
             WakeNPC(uid, component);
         }
+
 
         public void OnNPCShutdown(EntityUid uid, HTNComponent component, ComponentShutdown args)
         {

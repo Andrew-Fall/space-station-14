@@ -1,6 +1,7 @@
 using Content.Server.GameTicking;
 using Content.Server.RoundEnd;
 using Content.Shared.CCVar;
+using Content.Shared.GameTicking;
 using Robust.Shared.Configuration;
 using Robust.Shared.GameObjects;
 

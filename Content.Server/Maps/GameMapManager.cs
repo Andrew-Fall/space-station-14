@@ -21,16 +21,19 @@ public sealed class GameMapManager : IGameMapManager
     [Dependency] private readonly IResourceManager _resMan = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
 
-    [ViewVariables(VVAccess.ReadOnly)]
-    private readonly Queue<string> _previousMaps = new();
-    [ViewVariables(VVAccess.ReadOnly)]
-    private GameMapPrototype? _configSelectedMap;
-    [ViewVariables(VVAccess.ReadOnly)]
-    private GameMapPrototype? _selectedMap; // Don't change this value during a round!
-    [ViewVariables(VVAccess.ReadOnly)]
-    private bool _mapRotationEnabled;
-    [ViewVariables(VVAccess.ReadOnly)]
-    private int _mapQueueDepth = 1;
+    [ViewVariables(VVAccess.ReadOnly)] private readonly Queue<string> _previousMaps = new();
+
+    /// <summary>
+    /// The map our config wants us to load.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly)] private GameMapPrototype? _configSelectedMap;
+
+    /// <summary>
+    /// The map we will actually be loading.
+    /// </summary>
+    [ViewVariables(VVAccess.ReadOnly)] private GameMapPrototype? _selectedMap;
+    [ViewVariables(VVAccess.ReadOnly)] private bool _mapRotationEnabled;
+    [ViewVariables(VVAccess.ReadOnly)] private int _mapQueueDepth = 1;
 
     private ISawmill _log = default!;
 
@@ -49,24 +52,6 @@ public sealed class GameMapManager : IGameMapManager
             if (string.IsNullOrEmpty(value))
             {
                 _configSelectedMap = default!;
-                return;
-            }
-
-            if (_configurationManager.GetCVar<bool>(CCVars.UsePersistence))
-            {
-                var startMap = _configurationManager.GetCVar<string>(CCVars.PersistenceMap);
-                _configSelectedMap = _prototypeManager.Index<GameMapPrototype>(startMap);
-
-                var mapPath = new ResPath(value);
-                if (_resMan.UserData.Exists(mapPath))
-                {
-                    _configSelectedMap = _configSelectedMap.Persistence(mapPath);
-                    _log.Info($"Using persistence map from {value}");
-                    return;
-                }
-
-                // persistence save path doesn't exist so we just use the start map
-                _log.Warning($"Using persistence start map {startMap} as {value} doesn't exist");
                 return;
             }
 
@@ -130,7 +115,7 @@ public sealed class GameMapManager : IGameMapManager
 
     public GameMapPrototype? GetSelectedMap()
     {
-        return _configSelectedMap ?? _selectedMap;
+        return _selectedMap ?? _configSelectedMap;
     }
 
     public void ClearSelectedMap()
@@ -171,16 +156,45 @@ public sealed class GameMapManager : IGameMapManager
 
     public void SelectMapByConfigRules()
     {
+        if (_configurationManager.GetCVar(CCVars.UsePersistence))
+        {
+            if (_configSelectedMap == null)
+            {
+                _log.Error("Persistence is enabled but no config map is set.");
+                return;
+            }
+
+            var persistencePath = _configurationManager.GetCVar(CCVars.PersistenceMap);
+            var mapPath = new ResPath(persistencePath);
+
+            if (_resMan.UserData.Exists(mapPath))
+            {
+                // TODO: Make this better at some point
+                _selectedMap = _configSelectedMap.Persistence(mapPath);
+                _log.Info($"Using persistence map from {mapPath}");
+                return;
+            }
+
+            // persistence save path doesn't exist so we just use the start map
+            _selectedMap = _configSelectedMap;
+            _log.Warning($"Using persistence start map {_configSelectedMap.ID} as {mapPath} doesn't exist");
+            return;
+        }
+        if (_configSelectedMap is not null)
+        {
+            _selectedMap = _configSelectedMap;
+            return;
+        }
+
         if (_mapRotationEnabled)
         {
             _log.Info("selecting the next map from the rotation queue");
             SelectMapFromRotationQueue(true);
+            return;
         }
-        else
-        {
-            _log.Info("selecting a random map");
-            SelectMapRandom();
-        }
+
+        _log.Info("selecting a random map");
+        SelectMapRandom();
     }
 
     public bool CheckMapExists(string gameMap)

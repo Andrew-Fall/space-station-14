@@ -1,4 +1,5 @@
 using Content.Server.Administration.Managers;
+using Content.Server.Mind;
 using Content.Server.Station.Systems;
 using Content.Shared.Administration;
 using Content.Shared.CCVar;
@@ -28,10 +29,21 @@ namespace Content.Server.GameTicking.Commands
         }
         public void Execute(IConsoleShell shell, string argStr, string[] args)
         {
-            if (args.Length != 2)
+            if(args is not ["ingame"] && args.Length != 2 )
             {
                 shell.WriteError(Loc.GetString("shell-wrong-arguments-number"));
                 return;
+            }
+
+            var ticker = _entManager.System<GameTicker>();
+            switch (ticker.RunLevel)
+            {
+                case GameRunLevel.PreRoundLobby:
+                    shell.WriteLine("Round has not started.");
+                    return;
+                case GameRunLevel.PostRound:
+                    shell.WriteLine("Round has ended.");
+                    return;
             }
 
             var player = shell.Player;
@@ -41,9 +53,16 @@ namespace Content.Server.GameTicking.Commands
                 return;
             }
 
-            var ticker = _entManager.System<GameTicker>();
-            var stationJobs = _entManager.System<StationJobsSystem>();
+            if (args is ["ingame"])
+            {
+                var minds = _entManager.System<MindSystem>();
+                if (!minds.TryRejoinMind(player))
+                    shell.WriteError(Loc.GetString("Could not rejoin mind."));
 
+                return;
+            }
+
+            var stationJobs = _entManager.System<StationJobsSystem>();
             if (ticker.PlayerGameStatuses.TryGetValue(player.UserId, out var status) && status == PlayerGameStatus.JoinedGame)
             {
                 Logger.InfoS("security", $"{player.Name} ({player.UserId}) attempted to latejoin while in-game.");
@@ -51,12 +70,7 @@ namespace Content.Server.GameTicking.Commands
                 return;
             }
 
-            if (ticker.RunLevel == GameRunLevel.PreRoundLobby)
-            {
-                shell.WriteLine("Round has not started.");
-                return;
-            }
-            else if (ticker.RunLevel == GameRunLevel.InRound)
+            if (ticker.RunLevel == GameRunLevel.InRound)
             {
                 string id = args[0];
 

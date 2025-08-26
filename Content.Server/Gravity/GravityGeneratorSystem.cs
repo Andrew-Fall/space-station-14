@@ -13,6 +13,7 @@ public sealed class GravityGeneratorSystem : EntitySystem
     {
         base.Initialize();
 
+        SubscribeLocalEvent<GravityGeneratorComponent, ComponentStartup>(OnStartup);
         SubscribeLocalEvent<GravityGeneratorComponent, EntParentChangedMessage>(OnParentChanged);
         SubscribeLocalEvent<GravityGeneratorComponent, ChargedMachineActivatedEvent>(OnActivated);
         SubscribeLocalEvent<GravityGeneratorComponent, ChargedMachineDeactivatedEvent>(OnDeactivated);
@@ -30,6 +31,15 @@ public sealed class GravityGeneratorSystem : EntitySystem
             _lights.SetEnabled(uid, charge.Charge > 0, pointLight);
             _lights.SetRadius(uid, MathHelper.Lerp(grav.LightRadiusMin, grav.LightRadiusMax, charge.Charge),
                 pointLight);
+        }
+    }
+
+    private void OnStartup(Entity<GravityGeneratorComponent> ent, ref ComponentStartup args)
+    {
+        var xform = Transform(ent);
+        if (TryComp(xform.ParentUid, out GravityComponent? gravity))
+        {
+            _gravitySystem.RefreshGravity(xform.ParentUid, gravity);
         }
     }
 

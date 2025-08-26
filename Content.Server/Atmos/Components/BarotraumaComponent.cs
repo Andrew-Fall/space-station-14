@@ -33,19 +33,23 @@ namespace Content.Server.Atmos.Components
         /// <summary>
         /// Cached pressure protection values
         /// </summary>
+        [DataField]
         [ViewVariables]
         public float HighPressureMultiplier = 1f;
+        [DataField]
         [ViewVariables]
         public float HighPressureModifier = 0f;
+        [DataField]
         [ViewVariables]
         public float LowPressureMultiplier = 1f;
+        [DataField]
         [ViewVariables]
         public float LowPressureModifier = 0f;
 
         /// <summary>
         /// Whether the entity is immuned to pressure (i.e possess the PressureImmunity component)
         /// </summary>
-        [ViewVariables(VVAccess.ReadWrite)]
+        [DataField]
         public bool HasImmunity = false;
 
         [DataField]

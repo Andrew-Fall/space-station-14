@@ -7,6 +7,7 @@ using Content.Client.Playtime;
 using Content.Client.UserInterface.Systems.Chat;
 using Content.Client.Voting;
 using Content.Shared.CCVar;
+using Content.Shared.GameTicking;
 using Robust.Client;
 using Robust.Client.Console;
 using Robust.Client.ResourceManagement;
@@ -107,8 +108,14 @@ namespace Content.Client.Lobby
 
         private void OnReadyPressed(BaseButton.ButtonEventArgs args)
         {
-            if (!_gameTicker.IsGameStarted)
+            if (_gameTicker.CurrentRunLevel != GameRunLevel.InRound)
             {
+                return;
+            }
+
+            if (_gameTicker.CharacterInGame)
+            {
+                _consoleHost.ExecuteCommand("joingame ingame");
                 return;
             }
 
@@ -122,7 +129,7 @@ namespace Content.Client.Lobby
 
         public override void FrameUpdate(FrameEventArgs e)
         {
-            if (_gameTicker.IsGameStarted)
+            if (_gameTicker.CurrentRunLevel == GameRunLevel.InRound)
             {
                 Lobby!.StartTime.Text = string.Empty;
                 var roundTime = _gameTiming.CurTime.Subtract(_gameTicker.RoundStartTimeSpan);
@@ -176,21 +183,31 @@ namespace Content.Client.Lobby
 
         private void UpdateLobbyUi()
         {
-            if (_gameTicker.IsGameStarted)
+            switch (_gameTicker.CurrentRunLevel)
             {
-                Lobby!.ReadyButton.Text = Loc.GetString("lobby-state-ready-button-join-state");
-                Lobby!.ReadyButton.ToggleMode = false;
-                Lobby!.ReadyButton.Pressed = false;
-                Lobby!.ObserveButton.Disabled = false;
-            }
-            else
-            {
-                Lobby!.StartTime.Text = string.Empty;
-                Lobby!.ReadyButton.Text = Loc.GetString(Lobby!.ReadyButton.Pressed ? "lobby-state-player-status-ready": "lobby-state-player-status-not-ready");
-                Lobby!.ReadyButton.ToggleMode = true;
-                Lobby!.ReadyButton.Disabled = false;
-                Lobby!.ReadyButton.Pressed = _gameTicker.AreWeReady;
-                Lobby!.ObserveButton.Disabled = true;
+                case GameRunLevel.InRound:
+                    Lobby!.ReadyButton.Text = Loc.GetString("lobby-state-ready-button-join-state");
+                    Lobby!.ReadyButton.ToggleMode = false;
+                    Lobby!.ReadyButton.Pressed = false;
+                    Lobby!.ObserveButton.Disabled = false;
+                    break;
+                case GameRunLevel.PostRound:
+                    Lobby!.ReadyButton.Text = Loc.GetString("lobby-state-ready-button-round-over");
+                    Lobby!.ReadyButton.ToggleMode = false;
+                    Lobby!.ReadyButton.Pressed = false;
+                    Lobby!.ReadyButton.Disabled = true;
+                    Lobby!.ObserveButton.Disabled = true;
+                    break;
+                case GameRunLevel.PreRoundLobby:
+                    Lobby!.StartTime.Text = string.Empty;
+                    Lobby!.ReadyButton.Text = Loc.GetString(Lobby!.ReadyButton.Pressed ? "lobby-state-player-status-ready": "lobby-state-player-status-not-ready");
+                    Lobby!.ReadyButton.ToggleMode = true;
+                    Lobby!.ReadyButton.Disabled = false;
+                    Lobby!.ReadyButton.Pressed = _gameTicker.Status == PlayerGameStatus.ReadyToPlay;
+                    Lobby!.ObserveButton.Disabled = true;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
             if (_gameTicker.ServerInfoBlob != null)
@@ -263,7 +280,7 @@ namespace Content.Client.Lobby
 
         private void SetReady(bool newReady)
         {
-            if (_gameTicker.IsGameStarted)
+            if (_gameTicker.CurrentRunLevel != GameRunLevel.PreRoundLobby)
             {
                 return;
             }

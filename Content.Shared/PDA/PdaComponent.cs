@@ -27,7 +27,7 @@ namespace Content.Shared.PDA
         [DataField("id", customTypeSerializer: typeof(PrototypeIdSerializer<EntityPrototype>))]
         public string? IdCard;
 
-        [ViewVariables] public EntityUid? ContainedId;
+        [ViewVariables, DataField] public EntityUid? ContainedId;
         [ViewVariables] public bool FlashlightOn;
 
         [ViewVariables(VVAccess.ReadWrite)] public string? OwnerName;

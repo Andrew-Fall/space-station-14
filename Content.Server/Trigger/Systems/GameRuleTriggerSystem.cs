@@ -1,6 +1,7 @@
 using Content.Server.Administration.Logs;
 using Content.Server.GameTicking;
 using Content.Shared.Database;
+using Content.Shared.GameTicking;
 using Content.Shared.Trigger;
 using Content.Shared.Trigger.Components.Effects;
 

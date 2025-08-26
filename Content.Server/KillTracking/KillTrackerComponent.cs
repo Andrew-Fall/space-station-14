@@ -19,7 +19,6 @@ public sealed partial class KillTrackerComponent : Component
     /// <summary>
     /// A dictionary of sources and how much damage they've done to this entity over time.
     /// </summary>
-    [DataField("lifetimeDamage")]
     public Dictionary<KillSource, FixedPoint2> LifetimeDamage = new();
 }
 
@@ -28,10 +27,8 @@ public abstract record KillSource;
 /// <summary>
 /// A kill source for players
 /// </summary>
-[DataDefinition, Serializable]
-public sealed partial record KillPlayerSource : KillSource
+public sealed record KillPlayerSource : KillSource
 {
-    [DataField("playerId")]
     public NetUserId PlayerId;
 
     public KillPlayerSource(NetUserId playerId)
@@ -43,10 +40,8 @@ public sealed partial record KillPlayerSource : KillSource
 /// <summary>
 /// A kill source for non-player controlled entities
 /// </summary>
-[DataDefinition, Serializable]
-public sealed partial record KillNpcSource : KillSource
+public sealed record KillNpcSource : KillSource
 {
-    [DataField("npcEnt")]
     public EntityUid NpcEnt;
 
     public KillNpcSource(EntityUid npcEnt)
@@ -58,5 +53,4 @@ public sealed partial record KillNpcSource : KillSource
 /// <summary>
 /// A kill source for kills with no damage origin
 /// </summary>
-[DataDefinition, Serializable]
-public sealed partial record KillEnvironmentSource : KillSource;
+public sealed record KillEnvironmentSource : KillSource;

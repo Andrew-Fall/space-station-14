@@ -12,6 +12,7 @@ namespace Content.Shared.GameTicking
 {
     public abstract class SharedGameTicker : EntitySystem
     {
+
         [Dependency] private readonly IReplayRecordingManager _replay = default!;
         [Dependency] private readonly IGameTiming _gameTiming = default!;
 
@@ -94,19 +95,23 @@ namespace Content.Shared.GameTicking
     [Serializable, NetSerializable]
     public sealed class TickerLobbyStatusEvent : EntityEventArgs
     {
-        public bool IsRoundStarted { get; }
+
+        public GameRunLevel GameRunLevel { get; }
+        public bool CharacterInGame { get; }
         public string? LobbyBackground { get; }
-        public bool YouAreReady { get; }
+        public PlayerGameStatus Status { get; }
+
         // UTC.
         public TimeSpan StartTime { get; }
         public TimeSpan RoundStartTimeSpan { get; }
         public bool Paused { get; }
 
-        public TickerLobbyStatusEvent(bool isRoundStarted, string? lobbyBackground, bool youAreReady, TimeSpan startTime, TimeSpan preloadTime, TimeSpan roundStartTimeSpan, bool paused)
+        public TickerLobbyStatusEvent(GameRunLevel gameRunLevel, bool characterInGame, string? lobbyBackground, PlayerGameStatus status, TimeSpan startTime, TimeSpan preloadTime, TimeSpan roundStartTimeSpan, bool paused)
         {
-            IsRoundStarted = isRoundStarted;
+            GameRunLevel = gameRunLevel;
+            CharacterInGame = characterInGame;
             LobbyBackground = lobbyBackground;
-            YouAreReady = youAreReady;
+            Status = status;
             StartTime = startTime;
             RoundStartTimeSpan = roundStartTimeSpan;
             Paused = paused;
@@ -229,5 +234,13 @@ namespace Content.Shared.GameTicking
         NotReadyToPlay = 0,
         ReadyToPlay,
         JoinedGame,
+    }
+
+    [Serializable, NetSerializable]
+    public enum GameRunLevel : sbyte
+    {
+        PreRoundLobby = 0,
+        InRound = 1,
+        PostRound = 2,
     }
 }

@@ -25,8 +25,9 @@ namespace Content.Client.GameTicking.Managers
         private Dictionary<NetEntity, Dictionary<ProtoId<JobPrototype>, int?>>  _jobsAvailable = new();
         private Dictionary<NetEntity, string> _stationNames = new();
 
-        [ViewVariables] public bool AreWeReady { get; private set; }
-        [ViewVariables] public bool IsGameStarted { get; private set; }
+        [ViewVariables] public bool CharacterInGame { get; private set; }
+        [ViewVariables] public PlayerGameStatus Status { get; private set; }
+        [ViewVariables] public GameRunLevel CurrentRunLevel { get; private set; }
         [ViewVariables] public ResolvedSoundSpecifier? RestartSound { get; private set; }
         [ViewVariables] public string? LobbyBackground { get; private set; }
         [ViewVariables] public bool DisallowedLateJoin { get; private set; }
@@ -122,8 +123,9 @@ namespace Content.Client.GameTicking.Managers
         {
             StartTime = message.StartTime;
             RoundStartTimeSpan = message.RoundStartTimeSpan;
-            IsGameStarted = message.IsRoundStarted;
-            AreWeReady = message.YouAreReady;
+            CharacterInGame = message.CharacterInGame;
+            CurrentRunLevel = message.GameRunLevel;
+            Status = message.Status;
             LobbyBackground = message.LobbyBackground;
             Paused = message.Paused;
 

@@ -72,14 +72,15 @@ public sealed partial class CCVars
         GameMap = CVarDef.Create("game.map", string.Empty, CVar.SERVERONLY);
 
     /// <summary>
-    ///     Controls whether to use world persistence or not.
+    ///     Controls whether to use world persistence or not. Note: This is still in development and you are extremely
+    ///     likely to encounter bugs
     /// </summary>
     public static readonly CVarDef<bool>
         UsePersistence = CVarDef.Create("game.usepersistence", false, CVar.ARCHIVE);
 
     /// <summary>
-    ///     If world persistence is used, what map prototype should be initially loaded.
-    ///     If the save file exists, it replaces MapPath but everything else stays the same (station name and such).
+    ///     If world persistence is used, sets the save map path.
+    ///     If the save file exists, it replaces the MapPath of game.map but everything else stays the same (station name and such).
     /// </summary>
     public static readonly CVarDef<string>
         PersistenceMap = CVarDef.Create("game.persistencemap", "Empty", CVar.ARCHIVE);

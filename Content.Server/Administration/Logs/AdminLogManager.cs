@@ -9,6 +9,7 @@ using Content.Shared.Administration.Logs;
 using Content.Shared.CCVar;
 using Content.Shared.Chat;
 using Content.Shared.Database;
+using Content.Shared.GameTicking;
 using Content.Shared.Mind;
 using Content.Shared.Players.PlayTimeTracking;
 using Prometheus;
